@@ -1,9 +1,10 @@
 <?php
 session_start();
-// Xóa toàn bộ session (bao gồm thông tin đăng nhập và giỏ hàng)
+// Xóa toàn bộ dữ liệu Session
+$_SESSION = [];
+session_unset();
 session_destroy();
-
-// Chuyển hướng về trang chủ
+// Chuyển về trang chủ
 header("Location: index.php");
 exit();
 ?>

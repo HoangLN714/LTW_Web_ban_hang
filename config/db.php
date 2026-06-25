@@ -11,4 +11,6 @@ if ($conn->connect_error) {
 }
 // Đặt font chữ UTF-8 để không lỗi tiếng Việt
 $conn->set_charset("utf8mb4");
+// thoi gian thuc
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 ?>
