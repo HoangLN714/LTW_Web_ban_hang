@@ -1,51 +1,66 @@
-<?php 
-// Nhúng file header của admin để kiểm tra quyền và lấy kết nối CSDL
-include 'header.php'; 
-
-// Lấy toàn bộ danh sách thành viên trong CSDL
-$sql = "SELECT id, username, fullname, email, role, created_at FROM users ORDER BY id DESC";
-$result = $conn->query($sql);
+<?php
+include 'header.php';
+$key="";
+$sql="SELECT * FROM users";
+if(isset($_GET['search']) && $_GET['search']!=""){
+    $key=$conn->real_escape_string($_GET['search']);
+    $sql.=" WHERE
+    username LIKE '%$key%'
+    OR fullname LIKE '%$key%'
+    OR email LIKE '%$key%'";
+}
+$sql.=" ORDER BY id DESC";
+$result=$conn->query($sql);
+$total=$result->num_rows;
 ?>
-
-<h2 class="mb-4">👥 Quản lý Người dùng</h2>
-
-<div class="card shadow-sm border-0">
-    <div class="card-body">
-        <table class="table table-bordered table-hover align-middle text-center mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>ID</th>
-                    <th>Tên đăng nhập</th>
-                    <th>Họ và tên</th>
-                    <th>Email</th>
-                    <th>Vai trò</th>
-                    <th>Ngày đăng ký</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if ($result && $result->num_rows > 0): ?>
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= $row['id'] ?></td>
-                            <td><strong><?= $row['username'] ?></strong></td>
-                            <td class="text-start"><?= !empty($row['fullname']) ? $row['fullname'] : 'Chưa cập nhật' ?></td>
-                            <td class="text-start"><?= !empty($row['email']) ? $row['email'] : 'Chưa cập nhật' ?></td>
-                            <td>
-                                <?php if ($row['role'] === 'admin'): ?>
-                                    <span class="badge bg-danger">Quản trị viên (Admin)</span>
-                                <?php else: ?>
-                                    <span class="badge bg-info text-dark">Khách hàng</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?= date('d/m/Y', strtotime($row['created_at'])) ?></td>
-                        </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr><td colspan="6" class="text-muted p-4">Hệ thống chưa có thành viên nào.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+<div class="d-flex justify-content-between mb-4">
+<h2>👥 Quản lý người dùng</h2>
+<form class="d-flex">
+<input
+type="text"
+name="search"
+value="<?= htmlspecialchars($key) ?>"
+class="form-control me-2"
+placeholder="Tìm người dùng">
+<button class="btn btn-primary"> Tìm </button>
+</form>
 </div>
-
+<div class="alert alert-info"> Tổng người dùng: <strong><?= $total ?></strong> </div>
+<div class="card shadow">
+<div class="table-responsive">
+<table class="table table-hover table-bordered align-middle text-center">
+<thead class="table-dark">
+<tr>
+<th>ID</th>
+<th>Username</th>
+<th>Họ tên</th>
+<th>Email</th>
+<th>Vai trò</th>
+<th>Ngày tạo</th>
+</tr>
+</thead>
+<tbody>
+<?php while($row=$result->fetch_assoc()): ?>
+<tr>
+<td><?= $row['id'] ?></td>
+<td>
+<strong> <?= htmlspecialchars($row['username']) ?> </strong>
+</td>
+<td> <?= htmlspecialchars($row['fullname']) ?> </td>
+<td> <?= htmlspecialchars($row['email']) ?> </td>
+<td>
+<?php
+if($row['role']=="admin"){ echo "<span class='badge bg-danger'> Admin </span>";
+}else{
+echo "<span class='badge bg-success'> Customer </span>";
+}
+?>
+</td>
+<td> <?= date("d/m/Y H:i",strtotime($row['created_at'])) ?> </td>
+</tr>
+<?php endwhile; ?>
+</tbody>
+</table>
+</div>
+</div>
 <?php include 'footer.php'; ?>

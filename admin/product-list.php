@@ -1,104 +1,249 @@
 <?php
-// Khởi động session và kết nối CSDL nếu chưa có
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-require_once '../config/db.php';
 include 'header.php';
 
-// Kiểm tra quyền hạn Admin
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../login.php");
-    exit();
-}
+$message="";
 
-// 1. XỬ LÝ LỆNH XÓA SẢN PHẨM (NẾU CÓ)
-if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
-    $id_to_delete = intval($_GET['id']);
-    
-    // Lấy tên ảnh cũ để xóa file vật lý trong thư mục uploads trước
-    $img_res = $conn->query("SELECT image FROM products WHERE id = $id_to_delete");
-    if ($img_res && $img_res->num_rows > 0) {
-        $img_row = $img_res->fetch_assoc();
-        $old_image = "../uploads/" . $img_row['image'];
-        if (file_exists($old_image) && !empty($img_row['image'])) {
-            unlink($old_image); // Xóa ảnh khỏi thư mục
+/*=========================
+    XÓA SẢN PHẨM
+=========================*/
+
+if(isset($_GET['delete'])){
+
+    $id=intval($_GET['delete']);
+
+    $stmt=$conn->prepare("SELECT image FROM products WHERE id=?");
+    $stmt->bind_param("i",$id);
+    $stmt->execute();
+
+    $img=$stmt->get_result()->fetch_assoc();
+
+    if($img){
+
+        if(!empty($img['image']) && file_exists("../uploads/".$img['image'])){
+            unlink("../uploads/".$img['image']);
         }
+
+        $stmt=$conn->prepare("DELETE FROM products WHERE id=?");
+        $stmt->bind_param("i",$id);
+
+        if($stmt->execute()){
+
+            $message="<div class='alert alert-success'>
+            Đã xóa sản phẩm thành công.
+            </div>";
+
+        }
+
     }
-    
-    // Xóa dữ liệu sản phẩm trong Database
-    $sql_delete = "DELETE FROM products WHERE id = $id_to_delete";
-    if ($conn->query($sql_delete) === TRUE) {
-        echo "<div class='alert alert-success mt-3'>🎉 Đã xóa sản phẩm thành công!</div>";
-    } else {
-        echo "<div class='alert alert-danger mt-3'>Lỗi khi xóa: " . $conn->error . "</div>";
-    }
+
 }
 
-// 2. TRUY VẤN LẤY TOÀN BỘ DANH SÁCH SẢN PHẨM
-$sql = "SELECT * FROM products ORDER BY id DESC";
-$result = $conn->query($sql);
+/*=========================
+    TÌM KIẾM
+=========================*/
+
+$key="";
+
+$sql="
+SELECT
+p.*,
+c.name AS category
+FROM products p
+LEFT JOIN categories c
+ON p.category_id=c.id
+";
+
+if(isset($_GET['search']) && $_GET['search']!=""){
+
+    $key=$conn->real_escape_string($_GET['search']);
+
+    $sql.=" WHERE
+    p.name LIKE '%$key%'
+    OR c.name LIKE '%$key%'";
+
+}
+
+$sql.=" ORDER BY p.id DESC";
+
+$result=$conn->query($sql);
+
+$total=$result->num_rows;
 ?>
 
-<div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📦 Quản lý Danh sách Sản phẩm</h2>
-        <a href="product-add.php" class="btn btn-success fw-bold">➕ Thêm sản phẩm mới</a>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle text-center mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th style="width: 60px;">ID</th>
-                            <th style="width: 100px;">Hình ảnh</th>
-                            <th>Tên sản phẩm</th>
-                            <th style="width: 130px;">Giá bán</th>
-                            <th>Mô tả chi tiết</th>
-                            <th style="width: 160px;">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($result && $result->num_rows > 0): ?>
-                            <?php while ($row = $result->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= $row['id'] ?></td>
-                                    <td>
-                                        <img src="../uploads/<?= $row['image'] ?>" width="60" height="60" class="rounded border" style="object-fit: cover;" alt="">
-                                    </td>
-                                    <td class="text-start fw-bold"><?= htmlspecialchars($row['name']) ?></td>
-                                    <td class="text-danger fw-bold"><?= number_format($row['price'], 0, ',', '.') ?> đ</td>
-                                    
-                                    <td class="text-start text-muted" style="max-width: 250px; font-size: 0.9rem;">
-                                        <?php 
-                                        if (!empty($row['description'])) {
-                                            $desc = htmlspecialchars($row['description']);
-                                            echo (mb_strlen($desc) > 60) ? mb_substr($desc, 0, 60) . '...' : $desc;
-                                        } else {
-                                            echo '<span class="text-black-50 italic">Chưa có mô tả</span>';
-                                        }
-                                        ?>
-                                    </td>
-                                    
-                                    <td>
-                                        <a href="product-edit.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning fw-bold text-dark me-1">✏️ Sửa</a>
-                                        <a href="product-list.php?action=delete&id=<?= $row['id'] ?>" class="btn btn-sm btn-danger fw-bold" onclick="return confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')">🗑️ Xóa</a>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="6" class="text-muted p-4">Hệ thống của bạn hiện chưa có sản phẩm nào.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<h2>📦 Quản lý sản phẩm</h2>
+
+<div>
+
+<form class="d-flex">
+
+<input
+type="text"
+name="search"
+class="form-control me-2"
+placeholder="Tên sản phẩm..."
+value="<?= htmlspecialchars($key) ?>">
+
+<button class="btn btn-primary me-2">
+Tìm
+</button>
+
+<a
+href="product-add.php"
+class="btn btn-success">
+
+➕ Thêm
+
+</a>
+
+</form>
+
+</div>
+
+</div>
+
+<?= $message ?>
+
+<div class="alert alert-info">
+
+Tổng sản phẩm:
+<strong><?= $total ?></strong>
+
+</div>
+
+<div class="card shadow">
+
+<div class="table-responsive">
+
+<table class="table table-hover table-bordered align-middle text-center">
+
+<thead class="table-dark">
+
+<tr>
+
+<th>ID</th>
+
+<th>Ảnh</th>
+
+<th>Tên</th>
+
+<th>Danh mục</th>
+
+<th>Giá</th>
+
+<th>Mô tả</th>
+
+<th width="170">
+Thao tác
+</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<?php while($row=$result->fetch_assoc()): ?>
+
+<tr>
+
+<td>
+
+<?= $row['id'] ?>
+
+</td>
+
+<td>
+
+<img
+src="../uploads/<?= $row['image'] ?>"
+width="65"
+height="65"
+class="rounded border"
+style="object-fit:cover;">
+
+</td>
+
+<td class="text-start">
+
+<strong>
+
+<?= htmlspecialchars($row['name']) ?>
+
+</strong>
+
+</td>
+
+<td>
+
+<span class="badge bg-secondary">
+
+<?= htmlspecialchars($row['category'] ?? "Chưa có") ?>
+
+</span>
+
+</td>
+
+<td class="text-danger fw-bold">
+
+<?= number_format($row['price'],0,",",".") ?> đ
+
+</td>
+
+<td class="text-start">
+
+<?= mb_strlen($row['description'])>80
+? mb_substr(htmlspecialchars($row['description']),0,80)." ..."
+: htmlspecialchars($row['description']) ?>
+
+</td>
+
+<td>
+
+<a
+href="product-edit.php?id=<?= $row['id'] ?>"
+class="btn btn-warning btn-sm">
+
+✏️ Sửa
+
+</a>
+
+<a
+href="?delete=<?= $row['id'] ?>"
+class="btn btn-danger btn-sm"
+onclick="return confirm('Xóa sản phẩm này?')">
+
+🗑️ Xóa
+
+</a>
+
+</td>
+
+</tr>
+
+<?php endwhile; ?>
+
+<?php if($total==0): ?>
+
+<tr>
+
+<td colspan="7">
+
+Không có sản phẩm.
+
+</td>
+
+</tr>
+
+<?php endif; ?>
+
+</tbody>
+
+</table>
+
+</div>
+
 </div>
 
 <?php include 'footer.php'; ?>

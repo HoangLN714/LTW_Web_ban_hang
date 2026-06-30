@@ -1,135 +1,198 @@
 <?php
-// Bật thông báo lỗi để dễ theo dõi nếu có trục trặc
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-
-// Khởi động session và kết nối CSDL
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-require_once '../config/db.php';
 include 'header.php';
 
-// Kiểm tra quyền hạn Admin (Bảo mật)
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../login.php");
-    exit();
-}
+// ======================
+// THỐNG KÊ
+// ======================
 
-// 1. TRUY VẤN ĐẾM SỐ LIỆU ĐỂ HIỂN THỊ LÊN CÁC THẺ MÀU
-// Đếm tổng số sản phẩm
-$res_p = $conn->query("SELECT COUNT(*) as total FROM products");
-$total_products = ($res_p) ? $res_p->fetch_assoc()['total'] : 0;
+// Tổng sản phẩm
+$res = $conn->query("SELECT COUNT(*) AS total FROM products");
+$total_products = $res->fetch_assoc()['total'];
 
-// Đếm tổng số khách hàng (loại bỏ tài khoản admin ra khỏi danh sách đếm)
-$res_u = $conn->query("SELECT COUNT(*) as total FROM users WHERE role = 'customer'");
-$total_users = ($res_u) ? $res_u->fetch_assoc()['total'] : 0;
+// Tổng danh mục
+$res = $conn->query("SELECT COUNT(*) AS total FROM categories");
+$total_categories = $res->fetch_assoc()['total'];
 
-// Đếm tổng số đơn hàng (nếu bạn có bảng orders, nếu chưa có tạm thời để trống hoặc mặc định bằng 0)
-$total_orders = 0;
-if ($conn->query("SHOW TABLES LIKE 'orders'")->num_rows > 0) {
-    $res_o = $conn->query("SELECT COUNT(*) as total FROM orders");
-    $total_orders = ($res_o) ? $res_o->fetch_assoc()['total'] : 0;
-}
+// Tổng người dùng
+$res = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role='user'");
+$total_users = $res->fetch_assoc()['total'];
 
-// 2. LẤY DANH SÁCH THÀNH VIÊN HIỂN THỊ LÊN BẢNG
-$sql_users = "SELECT * FROM users ORDER BY id DESC";
-$result_users = $conn->query($sql_users);
+// Tổng đơn hàng
+$res = $conn->query("SELECT COUNT(*) AS total FROM orders");
+$total_orders = $res->fetch_assoc()['total'];
+
+// Doanh thu
+$res = $conn->query("
+SELECT IFNULL(SUM(total_money),0) AS total
+FROM orders
+WHERE status='Completed'
+");
+$total_money = $res->fetch_assoc()['total'];
+
+// Danh sách user
+$result_users = $conn->query("
+SELECT id,username,fullname,email,role,created_at
+FROM users
+ORDER BY id DESC
+");
+
+// 5 đơn hàng mới nhất
+$new_orders = $conn->query("
+SELECT
+orders.id,
+users.fullname,
+orders.total_money,
+orders.status,
+orders.created_at
+FROM orders
+JOIN users
+ON users.id=orders.user_id
+ORDER BY orders.created_at DESC
+LIMIT 5
+");
 ?>
-
-<div class="container mt-4 mb-5">
-    <h2 class="mb-4">📊 Hệ thống Quản trị (Dashboard)</h2>
-
-    <div class="row mb-5">
-        
-        <div class="col-md-4 mb-4">
-            <a href="product-list.php" class="text-decoration-none d-block">
-                <div class="card text-white bg-primary shadow-sm border-0 h-100 py-2" style="cursor: pointer; transition: transform 0.2s;">
-                    <div class="card-body">
-                        <h5 class="card-title opacity-75">📦 Tổng Sản phẩm</h5>
-                        <h1 class="display-4 fw-bold my-2"><?= $total_products ?></h1>
-                        <small class="text-white border-bottom border-light">Xem chi tiết danh sách ➡️</small>
-                    </div>
-                </div>
-            </a>
+<h2 class="fw-bold mb-4">
+📊 Dashboard
+</h2>
+<div class="row">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <div class="display-5 mb-2"> 📦 </div>
+                <h6 class="text-muted"> Tổng sản phẩm </h6>
+                <h2 class="fw-bold text-primary"> <?= $total_products ?> </h2>
+            </div>
         </div>
-        
-        <div class="col-md-4 mb-4">
-            <a href="#danh-sach-thanh-vien" class="text-decoration-none d-block">
-                <div class="card text-white bg-success shadow-sm border-0 h-100 py-2" style="cursor: pointer; transition: transform 0.2s;">
-                    <div class="card-body">
-                        <h5 class="card-title opacity-75">👥 Tổng Khách hàng</h5>
-                        <h1 class="display-4 fw-bold my-2"><?= $total_users ?></h1>
-                        <small class="text-white border-bottom border-light">Xem danh sách phía dưới 👇</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        
-        <div class="col-md-4 mb-4">
-            <a href="order.php" class="text-decoration-none d-block">
-                <div class="card text-dark bg-warning shadow-sm border-0 h-100 py-2" style="cursor: pointer; transition: transform 0.2s;">
-                    <div class="card-body">
-                        <h5 class="card-title opacity-75">🛒 Tổng Đơn hàng</h5>
-                        <h1 class="display-4 fw-bold my-2"><?= $total_orders ?></h1>
-                        <small class="text-dark border-bottom border-dark">Xem quản lý đơn hàng ➡️</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-
     </div>
-
-    <div id="danh-sach-thanh-vien" class="card shadow-sm border-0">
-        <div class="card-header bg-dark text-white fw-bold py-3">
-            👥 Danh sách Thành viên Hệ thống
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <div class="display-5 mb-2"> 📂 </div>
+                <h6 class="text-muted"> Danh mục </h6>
+                <h2 class="fw-bold text-info"> <?= $total_categories ?> </h2>
+            </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle text-center mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Tên đăng nhập</th>
-                            <th>Quyền hạn</th>
-                            <th>Ngày đăng ký (Realtime)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($result_users && $result_users->num_rows > 0): ?>
-                            <?php while ($row = $result_users->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= $row['id'] ?></td>
-                                    <td class="fw-bold text-start ps-4"><?= htmlspecialchars($row['username']) ?></td>
-                                    <td>
-                                        <?php if ($row['role'] === 'admin'): ?>
-                                            <span class="badge bg-danger">Quản trị viên</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-secondary">Khách hàng</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php 
-                                        if (isset($row['created_at']) && !empty($row['created_at'])) {
-                                            echo date('d/m/Y H:i', strtotime($row['created_at']));
-                                        } else {
-                                            echo '<span class="text-muted">Chưa ghi nhận</span>';
-                                        }
-                                        ?>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="4" class="text-muted p-4">Hệ thống chưa có thành viên nào đăng ký.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <div class="display-5 mb-2"> 👤 </div>
+                <h6 class="text-muted"> Khách hàng </h6>
+                <h2 class="fw-bold text-success"> <?= $total_users ?> </h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card shadow border-0">
+            <div class="card-body text-center">
+                <div class="display-5 mb-2"> 🛒 </div>
+                <h6 class="text-muted"> Đơn hàng </h6>
+                <h2 class="fw-bold text-warning"> <?= $total_orders ?> </h2>
             </div>
         </div>
     </div>
 </div>
-
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card bg-success text-white shadow border-0">
+            <div class="card-body text-center">
+                <h5> 💰 Tổng doanh thu </h5>
+                <h2 class="fw-bold"> <?= number_format($total_money,0,",",".") ?> đ </h2>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card shadow border-0 mb-5">
+    <div class="card-header bg-dark text-white"> 🛒 5 đơn hàng mới nhất </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Khách hàng</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th>Ngày đặt</th>
+            </tr>
+            </thead>
+            <tbody>
+            <?php if($new_orders->num_rows>0): ?>
+                <?php while($row=$new_orders->fetch_assoc()): ?>
+                <tr>
+                    <td>#<?= $row['id'] ?></td>
+                    <td><?= htmlspecialchars($row['fullname']) ?></td>
+                    <td class="fw-bold text-danger">
+                        <?= number_format($row['total_money'],0,",",".") ?> đ </td>
+                    <td>
+                        <?php
+                        switch($row['status']){
+                            case 'Pending':
+                                echo '<span class="badge bg-warning text-dark">Pending</span>';
+                                break;
+                            case 'Processing':
+                                echo '<span class="badge bg-info">Processing</span>';
+                                break;
+                            case 'Shipping':
+                                echo '<span class="badge bg-primary">Shipping</span>';
+                                break;
+                            case 'Completed':
+                                echo '<span class="badge bg-success">Completed</span>';
+                                break;
+                            default:
+                                echo '<span class="badge bg-danger">Cancelled</span>';
+                        }
+                        ?>
+                    </td>
+                    <td>
+                        <?= date("d/m/Y H:i",strtotime($row['created_at'])) ?>
+                    </td>
+                </tr>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="5" class="text-center"> Chưa có đơn hàng. </td>
+                </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="card shadow border-0">
+    <div class="card-header bg-dark text-white"> 👥 Danh sách người dùng </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Ngày tạo</th>
+            </tr>
+            </thead>
+            <tbody>
+            <?php while($row=$result_users->fetch_assoc()): ?>
+                <tr>
+                    <td><?= $row['id'] ?></td>
+                    <td><?= htmlspecialchars($row['username']) ?></td>
+                    <td><?= htmlspecialchars($row['fullname']) ?></td>
+                    <td><?= htmlspecialchars($row['email']) ?></td>
+                    <td>
+                        <?php
+                        if($row['role']=="admin")
+                            echo '<span class="badge bg-danger">Admin</span>';
+                        else
+                            echo '<span class="badge bg-secondary">User</span>';
+                        ?>
+                    </td>
+                    <td> <?= date("d/m/Y",strtotime($row['created_at'])) ?> </td>
+                </tr>
+            <?php endwhile; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 <?php include 'footer.php'; ?>
