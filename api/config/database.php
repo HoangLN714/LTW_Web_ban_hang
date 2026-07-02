@@ -5,7 +5,7 @@ header("Content-Type: application/json; charset=UTF-8");
 $host="localhost";
 $user="root";
 $password="";
-$database="shop";
+$database="web_ban_hang";
 
 $conn=new mysqli($host,$user,$password,$database);
 
@@ -20,4 +20,4 @@ if($conn->connect_error){
     exit();
 }
 
-$conn->set_charset("utf8");
+$conn->set_charset("utf8mb4");

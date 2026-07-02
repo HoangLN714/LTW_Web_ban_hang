@@ -1,68 +1,104 @@
 <?php
-require_once 'config/db.php';
-include 'header.php';
-$search = "";
-if (isset($_GET['search']) && !empty($_GET['search'])) {
-    $search = trim($_GET['search']);
-    $stmt = $conn->prepare(
-        "SELECT *
-         FROM products
-         WHERE name LIKE ?
-         ORDER BY id DESC"
-    );
-    $keyword = "%" . $search . "%";
-    $stmt->bind_param(
-        "s",
-        $keyword
-    );
-    $stmt->execute();
-    $result = $stmt->get_result();
-} else {
-    $result = $conn->query(
-        "SELECT *
-         FROM products
-         ORDER BY id DESC"
-    );
-}
+include 'includes/header.php';
 ?>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h2>Tất cả sản phẩm</h2>
-        <form method="GET" action="products.php" class="d-flex" style="max-width:400px;width:100%;">
-            <input type="text" name="search" class="form-control me-2" placeholder="Tìm tên sản phẩm..." value="<?= htmlspecialchars($search) ?>">
-            <button type="submit" class="btn btn-primary"> Tìm </button>
-        </form>
+        <div class="d-flex" style="max-width:400px;width:100%;">
+            <input type="text" id="searchInput" class="form-control me-2" placeholder="Tìm tên sản phẩm...">
+            <button class="btn btn-primary" onclick="loadProducts()"> Tìm </button>
+        </div>
     </div>
-    <div class="row">
-        <?php if ($result && $result->num_rows > 0): ?>
-            <?php while ($row = $result->fetch_assoc()): ?>
-                <div class="col-md-3 col-sm-6 mb-4">
-                    <form method="POST" action="cart.php?action=add_multi" class="h-100">
-                        <input type="hidden" name="product_id" value="<?= $row['id'] ?>">
-                        <div class="card h-100 shadow-sm">
-                            <div class="d-flex align-items-center justify-content-center bg-light" style="height:220px;padding:15px;">
-                                <img src="uploads/<?= htmlspecialchars($row['image']) ?>" class="img-fluid" alt="<?= htmlspecialchars($row['name']) ?>" style="max-height:100%;object-fit:contain;" onerror="this.src='assets/images/no-image.png';">
-                            </div>
-                            <div class="card-body text-center d-flex flex-column">
-                                <h5 class="card-title"> <?= htmlspecialchars($row['name']) ?> </h5>
-                                <p class="text-danger fw-bold fs-5"> <?= number_format($row['price'],0,',','.') ?> đ </p>
-                                <div class="mt-auto"> <a href="product-detail.php?id=<?= $row['id'] ?>" class="btn btn-outline-primary w-100 mb-2"> Xem chi tiết </a>
-                                    <div class="input-group mb-2 mx-auto" style="max-width:130px;">
-                                        <span class="input-group-text"> SL </span>
-                                        <input type="number" name="quantity" class="form-control text-center" value="1" min="1" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-success w-100"> 🛒 Thêm vào giỏ </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <div class="col-12">
-                <div class="alert alert-warning"> Không tìm thấy sản phẩm phù hợp. </div>
-            </div>
-        <?php endif; ?>
+    
+    <!-- Notification -->
+    <div id="toastMessage" class="alert d-none fixed-top mt-3 mx-auto shadow" style="max-width: 400px; z-index: 9999;"></div>
+
+    <div class="row" id="productList">
+        <!-- Products injected here -->
+        <div class="col-12 text-center">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
     </div>
 </div>
-<?php include 'footer.php'; ?>
+
+<script>
+const formatVND = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toastMessage');
+    toast.className = `alert alert-${type} fixed-top mt-3 mx-auto shadow`;
+    toast.textContent = msg;
+    toast.classList.remove('d-none');
+    setTimeout(() => toast.classList.add('d-none'), 3000);
+}
+
+async function loadProducts() {
+    const list = document.getElementById('productList');
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    list.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+    
+    try {
+        const res = await fetchAPI('/product/index.php');
+        const products = res.data;
+        
+        let filtered = products;
+        if (search) {
+            filtered = products.filter(p => p.name.toLowerCase().includes(search));
+        }
+        
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="col-12"><div class="alert alert-warning">Không tìm thấy sản phẩm phù hợp.</div></div>';
+            return;
+        }
+        
+        let html = '';
+        filtered.forEach(p => {
+            const parts = p.image.split('/');
+            const imgName = parts[parts.length - 1];
+            
+            html += `
+            <div class="col-md-3 col-sm-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="d-flex align-items-center justify-content-center bg-light" style="height:220px;padding:15px;">
+                        <img src="uploads/${imgName}" class="img-fluid" alt="${p.name}" style="max-height:100%;object-fit:contain;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=No+Image';">
+                    </div>
+                    <div class="card-body text-center d-flex flex-column">
+                        <h5 class="card-title">${p.name}</h5>
+                        <p class="text-danger fw-bold fs-5">${formatVND(p.price)}</p>
+                        <div class="mt-auto"> 
+                            <a href="product-detail.php?id=${p.id}" class="btn btn-outline-primary w-100 mb-2">Xem chi tiết</a>
+                            <div class="input-group mb-2 mx-auto" style="max-width:130px;">
+                                <span class="input-group-text">SL</span>
+                                <input type="number" id="qty-${p.id}" class="form-control text-center" value="1" min="1">
+                            </div>
+                            <button onclick="addToCart(${p.id})" class="btn btn-success w-100">🛒 Thêm vào giỏ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+        
+    } catch (err) {
+        list.innerHTML = `<div class="col-12"><div class="alert alert-danger">Lỗi tải dữ liệu: ${err.message}</div></div>`;
+    }
+}
+
+async function addToCart(productId) {
+    const qty = document.getElementById(`qty-${productId}`).value;
+    try {
+        const res = await fetchAPI('/cart/add.php', {
+            method: 'POST',
+            body: { product_id: productId, quantity: qty }
+        });
+        showToast(res.message, 'success');
+    } catch (err) {
+        showToast(err.message, 'danger');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadProducts);
+</script>
+
+<?php include 'includes/footer.php'; ?>

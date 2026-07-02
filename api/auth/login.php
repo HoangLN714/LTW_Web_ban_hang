@@ -37,21 +37,14 @@ $user=$result->fetch_assoc();
 Nếu website đang lưu password dạng plain text
 */
 
-if($password!=$user['password']){
-    error("Username or password incorrect",401);
+if (!password_verify($password, $user['password'])) {
+    error("Username or password incorrect", 401);
 }
 
-/*
-Nếu dùng password_hash()
-thì thay bằng:
-
-if(!password_verify($password,$user['password']))
-*/
-
-$_SESSION['user_id']=$user['id'];
-$_SESSION['username']=$user['username'];
-$_SESSION['role']=$user['role'];
+$_SESSION['user_id'] = $user['id'];
+$_SESSION['username'] = $user['username'];
+$_SESSION['role'] = $user['role'];
 
 unset($user['password']);
 
-success($user,"Login success");
+success($user, "Login success");

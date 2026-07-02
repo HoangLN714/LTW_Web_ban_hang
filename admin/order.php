@@ -184,9 +184,9 @@ Completed
 </option>
 
 <option
-value="Canceled"
-<?= $row['status']=="Canceled"?"selected":"" ?>>
-Canceled
+value="Cancelled"
+<?= $row['status']=="Cancelled"?"selected":"" ?>>
+Cancelled
 </option>
 
 </select>

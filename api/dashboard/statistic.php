@@ -44,7 +44,7 @@ WHERE status='Completed'
 $canceled = $conn->query("
 SELECT COUNT(*) total
 FROM orders
-WHERE status='Canceled'
+WHERE status='Cancelled'
 ")->fetch_assoc()['total'];
 
 $revenue = $conn->query("

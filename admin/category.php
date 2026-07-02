@@ -63,19 +63,31 @@ if(isset($_GET['delete'])){
 
     $id=intval($_GET['delete']);
 
-    $stmt=$conn->prepare("
-        DELETE FROM categories
-        WHERE id=?
-    ");
+    // Kiểm tra còn sản phẩm thuộc danh mục này không
+    $check = $conn->prepare("SELECT COUNT(*) AS total FROM products WHERE category_id=?");
+    $check->bind_param("i", $id);
+    $check->execute();
+    $checkResult = $check->get_result()->fetch_assoc();
 
-    $stmt->bind_param("i",$id);
-
-    if($stmt->execute()){
-
-        $message="<div class='alert alert-success'>
-        Đã xóa danh mục.
+    if($checkResult['total'] > 0){
+        $message="<div class='alert alert-danger'>
+        Không thể xóa: Danh mục này còn <strong>{$checkResult['total']}</strong> sản phẩm. Hãy chuyển hoặc xóa sản phẩm trước.
         </div>";
+    } else {
+        $stmt=$conn->prepare("
+            DELETE FROM categories
+            WHERE id=?
+        ");
 
+        $stmt->bind_param("i",$id);
+
+        if($stmt->execute()){
+
+            $message="<div class='alert alert-success'>
+            Đã xóa danh mục.
+            </div>";
+
+        }
     }
 
 }

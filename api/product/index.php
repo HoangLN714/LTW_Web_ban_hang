@@ -1,7 +1,12 @@
 <?php
-
 require_once "../config/database.php";
 require_once "../config/response.php";
+
+// Xây dựng base URL động để tránh hardcode sai đường dẫn
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host   = $_SERVER['HTTP_HOST'];
+$base   = rtrim(str_replace('\\', '/', dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])))), '/');
+$uploadUrl = $scheme . '://' . $host . $base . '/uploads/';
 
 $sql="SELECT
 id,
@@ -18,7 +23,7 @@ $data=[];
 
 while($row=$result->fetch_assoc())
 {
-    $row['image']="http://localhost/shop/uploads/".$row['image'];
+    $row['image'] = $uploadUrl . $row['image'];
 
     $data[]=$row;
 }

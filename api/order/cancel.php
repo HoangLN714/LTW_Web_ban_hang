@@ -8,7 +8,7 @@ $id=intval($_POST['order_id']);
 
 $stmt=$conn->prepare("
 UPDATE orders
-SET status='Canceled'
+SET status='Cancelled'
 WHERE id=?
 AND user_id=?
 AND status='Pending'

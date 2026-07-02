@@ -25,12 +25,14 @@ $user=$stmt->get_result()->fetch_assoc();
 if(!$user){
 
     response(false,"User not found");
+    exit();
 
 }
 
 if(!password_verify($old,$user['password'])){
 
     response(false,"Old password incorrect");
+    exit();
 
 }
 

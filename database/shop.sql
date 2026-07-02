@@ -4,27 +4,25 @@ COLLATE utf8mb4_unicode_ci;
 
 USE web_ban_hang;
 
+-- Drop existing tables to prevent "Table already exists" error
+DROP TABLE IF EXISTS order_details;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS users;
+
 -- =========================================
 -- USERS
 -- =========================================
 
 CREATE TABLE users (
 id INT AUTO_INCREMENT PRIMARY KEY,
-
-```
 username VARCHAR(50) NOT NULL UNIQUE,
-
 password VARCHAR(255) NOT NULL,
-
 fullname VARCHAR(100) NOT NULL,
-
 email VARCHAR(100) NOT NULL UNIQUE,
-
-role ENUM('admin','user') DEFAULT 'user',
-
+role ENUM('admin','customer') DEFAULT 'customer',
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-```
-
 );
 
 -- =========================================
@@ -33,11 +31,7 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 CREATE TABLE categories (
 id INT AUTO_INCREMENT PRIMARY KEY,
-
-```
 name VARCHAR(100) NOT NULL
-```
-
 );
 
 -- =========================================
@@ -46,27 +40,16 @@ name VARCHAR(100) NOT NULL
 
 CREATE TABLE products (
 id INT AUTO_INCREMENT PRIMARY KEY,
-
-```
 category_id INT,
-
 name VARCHAR(255) NOT NULL,
-
 description TEXT,
-
 price DECIMAL(12,2) NOT NULL,
-
 quantity INT DEFAULT 0,
-
 image VARCHAR(255),
-
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
 FOREIGN KEY (category_id)
 REFERENCES categories(id)
 ON DELETE SET NULL
-```
-
 );
 
 -- =========================================
@@ -75,12 +58,9 @@ ON DELETE SET NULL
 
 CREATE TABLE orders (
 id INT AUTO_INCREMENT PRIMARY KEY,
-
-```
 user_id INT NOT NULL,
-
 total_money DECIMAL(12,2) NOT NULL,
-
+payment_method VARCHAR(50) DEFAULT 'COD',
 status ENUM(
     'Pending',
     'Processing',
@@ -88,14 +68,10 @@ status ENUM(
     'Completed',
     'Cancelled'
 ) DEFAULT 'Pending',
-
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
 FOREIGN KEY (user_id)
 REFERENCES users(id)
 ON DELETE CASCADE
-```
-
 );
 
 -- =========================================
@@ -104,25 +80,16 @@ ON DELETE CASCADE
 
 CREATE TABLE order_details (
 id INT AUTO_INCREMENT PRIMARY KEY,
-
-```
 order_id INT NOT NULL,
-
 product_id INT NOT NULL,
-
 quantity INT NOT NULL,
-
 price DECIMAL(12,2) NOT NULL,
-
 FOREIGN KEY (order_id)
 REFERENCES orders(id)
 ON DELETE CASCADE,
-
 FOREIGN KEY (product_id)
 REFERENCES products(id)
 ON DELETE CASCADE
-```
-
 );
 
 -- =========================================
@@ -156,7 +123,7 @@ VALUES
 'admin',
 '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
 'Administrator',
-'[admin@gmail.com](mailto:admin@gmail.com)',
+'admin@gmail.com',
 'admin'
 );
 

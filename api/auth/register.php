@@ -8,7 +8,7 @@ if($_SERVER['REQUEST_METHOD']!="POST"){
 }
 
 $username=trim($_POST['username']);
-$password=trim($_POST['password']);
+$password=password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
 $fullname=trim($_POST['fullname']);
 $email=trim($_POST['email']);
 
@@ -26,13 +26,6 @@ if($stmt->get_result()->num_rows>0){
 }
 
 $role="customer";
-
-/*
-Nếu muốn mã hóa:
-
-$password=password_hash($password,PASSWORD_DEFAULT);
-
-*/
 
 $stmt=$conn->prepare("
 INSERT INTO users

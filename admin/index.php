@@ -16,7 +16,7 @@ $res = $conn->query("SELECT COUNT(*) AS total FROM categories");
 $total_categories = $res->fetch_assoc()['total'];
 
 // Tổng người dùng
-$res = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role='user'");
+$res = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role='customer'");
 $total_users = $res->fetch_assoc()['total'];
 
 // Tổng đơn hàng

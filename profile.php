@@ -1,84 +1,85 @@
 <?php
-session_start();
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-require_once 'config/db.php';
-include 'header.php';
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
-}
-$user_id = $_SESSION['user_id'];
-$message = "";
-if (isset($_POST['update_profile'])) {
-    $fullname = trim($_POST['fullname']);
-    $email = trim($_POST['email']);
-    $stmt = $conn->prepare(
-        "UPDATE users
-         SET fullname = ?, email = ?
-         WHERE id = ?"
-    );
-    $stmt->bind_param(
-        "ssi",
-        $fullname,
-        $email,
-        $user_id
-    );
-    if ($stmt->execute()) {
-        $_SESSION['username'] = $fullname;
-        $message = "
-        <div class='alert alert-success'>
-            🎉 Cập nhật thông tin thành công!
-        </div>";
-    } else {
-        $message = "
-        <div class='alert alert-danger'>
-            Có lỗi xảy ra!
-        </div>";
-    }
-}
-$stmt = $conn->prepare(
-    "SELECT username, fullname, email
-     FROM users
-     WHERE id = ?"
-);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+include 'includes/header.php';
 ?>
 <div class="container mt-5">
-    <div class="row justify-content-center">
+    <div id="toastMessage" class="alert d-none fixed-top mt-3 mx-auto shadow" style="max-width: 400px; z-index: 9999;"></div>
+
+    <div class="row justify-content-center" id="profileContent">
+        <div class="col-12 text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toastMessage');
+    toast.className = `alert alert-${type} fixed-top mt-3 mx-auto shadow`;
+    toast.textContent = msg;
+    toast.classList.remove('d-none');
+    setTimeout(() => toast.classList.add('d-none'), 3000);
+}
+
+async function loadProfile() {
+    const container = document.getElementById('profileContent');
+    
+    try {
+        const res = await fetchAPI('/auth/profile.php');
+        const user = res.data;
+        
+        container.innerHTML = `
         <div class="col-md-6">
             <h2 class="text-center mb-4"> 👤 Thông tin cá nhân </h2>
-            <?= $message ?>
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <form method="POST">
+                    <form id="profileForm">
                         <div class="mb-3">
                             <label class="form-label"> Username </label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($user['username']) ?>" disabled >
+                            <input type="text" class="form-control" value="${user.username}" disabled >
                         </div>
                         <div class="mb-3">
                             <label class="form-label"> Họ và tên </label>
-                            <input type="text" name="fullname" class="form-control" value="<?= htmlspecialchars($user['fullname']) ?>" required >
+                            <input type="text" name="fullname" class="form-control" value="${user.fullname}" required>
                         </div>
-                        <div class="mb-4">
+                        <div class="mb-3">
                             <label class="form-label"> Email </label>
-                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>"  required >
+                            <input type="email" name="email" class="form-control" value="${user.email}" required>
                         </div>
-                        <div class="row">
-                            <div class="col-6">
-                                <a href="index.php"  class="btn btn-secondary w-100" > Quay lại </a>
-                            </div>
-                            <div class="col-6">
-                                <button type="submit" name="update_profile" class="btn btn-primary w-100" > Lưu thay đổi </button>
-                            </div>
+                        <div class="d-flex gap-3 mt-4">
+                            <button type="submit" class="btn btn-primary w-100"> Lưu thay đổi </button>
+                            <a href="index.php" class="btn btn-secondary w-100"> Quay lại </a>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-<?php include 'footer.php'; ?>
+        `;
+        
+        document.getElementById('profileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            try {
+                const updateRes = await fetchAPI('/auth/update-profile.php', {
+                    method: 'POST',
+                    body: Object.fromEntries(formData.entries())
+                });
+                showToast(updateRes.message, 'success');
+            } catch (err) {
+                showToast(err.message, 'danger');
+            }
+        });
+        
+    } catch (err) {
+        if (err.message.includes('Auth') || err.message.includes('Login')) {
+            window.location.href = 'login.php';
+        } else {
+            container.innerHTML = `<div class="alert alert-danger">Lỗi tải thông tin: ${err.message}</div>`;
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadProfile);
+</script>
+
+<?php include 'includes/footer.php'; ?>

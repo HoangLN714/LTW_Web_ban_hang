@@ -1,90 +1,91 @@
 <?php
-session_start();
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-require_once 'config/db.php';
-include 'header.php';
-if (!isset($_SESSION['user_id'])) {
-    echo "<div class='container mt-5 text-center'>
-            <div class='alert alert-warning'>
-                <h3>🔒 Bạn chưa đăng nhập!</h3>
-                <a href='login.php'
-                   class='btn btn-primary mt-3'>
-                   Đăng nhập ngay
-                </a>
-            </div>
-          </div>";
-    include 'footer.php';
-    exit();
-}
-$user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare(
-    "SELECT *
-     FROM orders
-     WHERE user_id = ?
-     ORDER BY created_at DESC"
-);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
+include 'includes/header.php';
 ?>
-<div class="container mt-4 mb-5">
-    <h2 class="mb-4"> 📜 Lịch sử mua hàng </h2>
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover text-center mb-0">
-                    <thead class="table-dark">
-                    <tr>
-                        <th>Mã Đơn</th>
-                        <th>Ngày Đặt</th>
-                        <th>Tổng Tiền</th>
-                        <th>Thanh Toán</th>
-                        <th>Trạng Thái</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <?php if ($result->num_rows > 0): ?>
-                        <?php while ($row = $result->fetch_assoc()): ?>
-                            <tr>
-                                <td>
-                                    <strong> #<?= $row['id'] ?> </strong>
-                                </td>
-                                <td> <?= date( 'd/m/Y H:i', strtotime($row['created_at']) ) ?> </td>
-                                <td class="text-danger fw-bold"> <?= number_format( $row['total_money'], 0, ',', '.' ) ?> đ
-                                </td>
-                                <td> <?= $row['payment_method'] ?> </td>
-                                <td>
-                                    <?php
-                                    switch ($row['status']) {
-                                        case 'Pending':
-                                            echo '<span class="badge bg-warning text-dark">Chờ duyệt</span>';
-                                            break;
-                                        case 'Processing':
-                                            echo '<span class="badge bg-info">Đang xử lý</span>';
-                                            break;
-                                        case 'Shipping':
-                                            echo '<span class="badge bg-primary">Đang giao</span>';
-                                            break;
-                                        case 'Completed': 
-                                            echo '<span class="badge bg-success">Hoàn thành</span>';
-                                            break;
-                                        default: 
-                                            echo '<span class="badge bg-danger">Đã hủy</span>';
-                                    }
-                                    ?>
-                                </td>
-                            </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="5"> Bạn chưa có đơn hàng nào. </td>
-                        </tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+<div class="container mt-5">
+    <h2 class="mb-4 text-center"> 📦 Lịch sử mua hàng </h2>
+    
+    <div id="historyContent">
+        <div class="col-12 text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
         </div>
     </div>
 </div>
-<?php include 'footer.php'; ?>
+
+<script>
+const formatVND = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
+function getStatusBadge(status) {
+    switch (status) {
+        case 'Pending': return '<span class="badge bg-warning text-dark">Chờ xử lý</span>';
+        case 'Processing': return '<span class="badge bg-info">Đang giao</span>';
+        case 'Completed': return '<span class="badge bg-success">Hoàn thành</span>';
+        case 'Cancelled': return '<span class="badge bg-danger">Đã hủy</span>';
+        default: return `<span class="badge bg-secondary">${status}</span>`;
+    }
+}
+
+async function loadHistory() {
+    const container = document.getElementById('historyContent');
+    
+    try {
+        const res = await fetchAPI('/order/history.php');
+        const orders = res.data;
+        
+        if (!orders || orders.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info text-center mt-4">
+                    Bạn chưa có đơn hàng nào!
+                    <a href="index.php" class="alert-link">Mua sắm ngay</a>
+                </div>
+            `;
+            return;
+        }
+        
+        let rows = '';
+        orders.forEach((order, index) => {
+            const date = new Date(order.created_at).toLocaleString('vi-VN');
+            rows += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><span class="fw-bold text-primary">#${order.id}</span></td>
+                    <td>${date}</td>
+                    <td class="text-danger fw-bold">${formatVND(order.total_money)}</td>
+                    <td>${order.payment_method}</td>
+                    <td>${getStatusBadge(order.status)}</td>
+                </tr>
+            `;
+        });
+        
+        container.innerHTML = `
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-hover table-bordered align-middle text-center bg-white mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>STT</th>
+                            <th>Mã Đơn Hàng</th>
+                            <th>Ngày Đặt</th>
+                            <th>Tổng Tiền</th>
+                            <th>Thanh Toán</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+    } catch (err) {
+        if (err.message.includes('Auth') || err.message.includes('Login')) {
+            window.location.href = 'login.php';
+        } else {
+            container.innerHTML = `<div class="alert alert-danger">Lỗi tải lịch sử đơn hàng: ${err.message}</div>`;
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadHistory);
+</script>
+
+<?php include 'includes/footer.php'; ?>

@@ -4,10 +4,18 @@ require_once "../config/auth.php";
 require_once "../config/database.php";
 require_once "../config/response.php";
 
-$fullname=$_POST['fullname'];
-$email=$_POST['email'];
+$fullname = trim($_POST['fullname'] ?? '');
+$email    = trim($_POST['email'] ?? '');
 
-$id=$_SESSION['user_id'];
+if ($fullname === '' || $email === '') {
+    error("Họ tên và email không được để trống");
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    error("Email không hợp lệ");
+}
+
+$id = $_SESSION['user_id'];
 
 $stmt=$conn->prepare("
 UPDATE users

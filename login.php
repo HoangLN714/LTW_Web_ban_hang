@@ -1,58 +1,55 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-session_start();
-require_once 'config/db.php';
-include 'header.php';
-$message = "";
-if (isset($_POST['login'])) {
-    $username = trim($_POST['username']);
-    $password = trim($_POST['password']);
-    $stmt = $conn->prepare(
-        "SELECT * FROM users WHERE username=?"
-    );
-    $stmt->bind_param( "s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($result->num_rows == 1) {
-        $user = $result->fetch_assoc();
-        if ( password_verify( $password, $user['password'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-            if ($user['role'] == 'admin') { header( "Location: admin/index.php" );
-            } else { header( "Location: index.php" ); }
-            exit();
-        } else {
-            $message = "Sai mật khẩu!";
-        }
-    } else {
-        $message = "Tài khoản không tồn tại!";
-    }
-}
+include 'includes/header.php';
 ?>
 <div class="row justify-content-center">
     <div class="col-md-6">
         <h3 class="mt-4"> Đăng nhập </h3>
-        <?php if(!empty($message)): ?>
-            <div class="alert alert-danger"> <?= $message ?> </div>
-        <?php endif; ?>
-        <form method="POST">
+        <div id="messageBox" class="alert d-none"></div>
+        <form id="loginForm">
             <div class="mb-3">
                 <label> Tên đăng nhập </label>
-                <input 
-                type="text" 
-                name="username" 
-                class="form-control" 
-                required>
+                <input type="text" name="username" class="form-control" required>
             </div>
             <div class="mb-3">
                 <label> Mật khẩu </label>
-                <input type="password"  name="password" class="form-control" required>
+                <input type="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" name="login" class="btn btn-primary"> Đăng nhập </button>
+            <button type="submit" class="btn btn-primary"> Đăng nhập </button>
             <a href="register.php" class="btn btn-link"> Chưa có tài khoản? </a>
         </form>
     </div>
 </div>
-<?php include 'footer.php'; ?>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const messageBox = document.getElementById('messageBox');
+    messageBox.classList.add('d-none');
+    
+    try {
+        const res = await fetchAPI('/auth/login.php', {
+            method: 'POST',
+            body: Object.fromEntries(formData.entries())
+        });
+        
+        messageBox.className = 'alert alert-success';
+        messageBox.textContent = res.message;
+        messageBox.classList.remove('d-none');
+        
+        setTimeout(() => {
+            if (res.data.role === 'admin') {
+                window.location.href = 'admin/index.php';
+            } else {
+                window.location.href = 'index.php';
+            }
+        }, 1000);
+    } catch (err) {
+        messageBox.className = 'alert alert-danger';
+        messageBox.textContent = err.message;
+        messageBox.classList.remove('d-none');
+    }
+});
+</script>
+
+<?php include 'includes/footer.php'; ?>
