@@ -37,7 +37,7 @@ $user=$result->fetch_assoc();
 Nếu website đang lưu password dạng plain text
 */
 
-if (!password_verify($password, $user['password'])) {
+if ($password !== $user['password']) {
     error("Username or password incorrect", 401);
 }
 
