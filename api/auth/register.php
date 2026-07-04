@@ -8,7 +8,7 @@ if($_SERVER['REQUEST_METHOD']!="POST"){
 }
 
 $username=trim($_POST['username']);
-$password=password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
+$password = trim($_POST['password']);
 $fullname=trim($_POST['fullname']);
 $email=trim($_POST['email']);
 
